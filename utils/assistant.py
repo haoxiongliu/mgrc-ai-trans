@@ -13,11 +13,11 @@ from time import sleep
 # can use asdict() function to transform dataclass instance into a dict
 @dataclass
 class RequestParameters:
-    model: str = "gpt-4-1106-preview"
+    model: str = "gpt-4-0125-preview"
     frequency_penalty: float = 0.0
     presence_penalty: float = 0.0
     temperature: float = 0.0
-    max_tokens: int = 2048
+    max_tokens: int = 4096
     top_p: float = 1.0
     stream: bool = False
 
@@ -25,7 +25,7 @@ class RequestParameters:
 # The assistant for Azure GPT service
 class Assistant():
 
-    def __init__(self, api_key: str, azure_url: str, system_prompt: str = "") -> None:
+    def __init__(self, api_key: str, azure_url: str = "http://10.220.5.153:31417/api/", system_prompt: str = "") -> None:
         self.messages = [] # current messages
         self.parameters = RequestParameters()
         self.api_key = api_key
@@ -35,17 +35,20 @@ class Assistant():
         self.model_url = azure_url
         if system_prompt:
             self.messages.append({"role": "system", "content": system_prompt})
-    
+
+    def substitute_msg(self, messages: list):
+        self.messages = messages
+
     def set_request_parameters(self, **kwargs):
         self.parameters = replace(self.parameters, **kwargs)
 
     # @retry(wait=wait_random_exponential(min=1, max=10), stop=stop_after_attempt(30))
-    def send_request(self, add_to_msg: bool = True, wait_time=10, max_retry=30, timeout=180) -> str:
+    def send_request(self, add_to_msg: bool = True, wait_time=10, max_retry=2, timeout=180) -> str:
         if len(self.messages) > 0:
             last_role = self.messages[-1]["role"]
             if last_role == "assistant":
                 warnings.warn("Last message was from assistant as well.")
-        url = self.model_url
+        url = self.model_url + "requestazuremessage"
         request = asdict(self.parameters)
         request["messages"] = self.messages
         body = {"type": "RequestAzureMessage", "apikey": self.api_key, "request": request, "uuid": {"id": self.uuid}}
