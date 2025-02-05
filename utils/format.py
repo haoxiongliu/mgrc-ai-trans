@@ -3,7 +3,7 @@ import json
 from os.path import join
 from copy import deepcopy
 from dataclasses import dataclass
-
+import re
 
 KEYS_RETAIN = [
     'textLeft', 'textCenter', 'textRight',
@@ -57,7 +57,7 @@ class Block:
 class MagirecoJSON:
     
     # to make the memory cost smaller
-    def __init__(self, src: dict, special: dict) -> None:
+    def __init__(self, src: dict, special: dict = {}) -> None:
         self.src = src
         self.tgt = deepcopy(src)
         # 其实可以不用维护这个表，只需要维护一个mgrc_name_trans就行了
@@ -67,11 +67,27 @@ class MagirecoJSON:
         self.special_in_src = set() # type: set
         self._process_src(special)  # special_in_src and names in tgt build
 
-    def tgt_text2tgt(self, tgt_text: str) -> dict:
+    def tgt_text2tgt(self, tgt_text: str, add_line_number=False) -> dict:
+        if not tgt_text:
+            return None
         tgt_text_list = tgt_text.strip().split('\n')
         if len(tgt_text_list) != len(self.blocks):
-            print(f'tgt_text lines not matching number of blocks, return None')
-            return None
+            if not add_line_number:
+                print(f'tgt_text lines not matching number of blocks, return None')
+                return None
+            else:
+                print(f'tgt_text lines not matching number of blocks, find line number')
+                old_list = tgt_text_list
+                tgt_text_list = ['']*len(self.blocks)
+                for tgt_text_line in old_list:
+                    m = re.match(r'(\[|^)(?P<line>\d+).*', tgt_text_line)
+                    if m:
+                        index = int(m.group('line')) - 1
+                        if index < len(self.blocks):
+                            tgt_text_list[index] = tgt_text_line
+                if ''.join(tgt_text_list) == '':
+                    print('No line number found. return None.')
+                    return None
             # if len(tgt_text_list) < len(self.blocks):
             #     tgt_text_list += ['']* (len(self.blocks) - len(tgt_text_list))
             # else:
@@ -88,8 +104,13 @@ class MagirecoJSON:
         return self.tgt
 
 
-    def get_src_text(self) -> str:
-        src_text = '\n'.join([block.text for block in self.blocks])
+    def get_src_text(self, add_line_number=False) -> str:
+        src_text = ''
+        for i, block in enumerate(self.blocks):
+            prefix = f'[{i+1}]' if add_line_number else ''
+            src_text += prefix + block.text + '\n'
+        src_text = src_text.strip()
+        # src_text = '\n'.join([f'2 {i} 3' + block.text for i, block in enumerate(self.blocks)])
         return src_text
 
     def _process_src(self, special: dict):
@@ -138,7 +159,11 @@ class MagirecoJSON:
                 if content_key:
                     # confirm if we need a new block
                     name_key = CONTENT2NAME[content_key]
-                    name = current_names[name_key]  # current_name
+                    try:
+                        name = current_names[name_key]  # current_name
+                    except:
+                        print(f'find no corresponding name to key {content_key} in {src}')
+                        name = ''
                     content = item[content_key].replace('@', '')
                     if not block or block.content_key != content_key or block.name != name:
                         if block:
