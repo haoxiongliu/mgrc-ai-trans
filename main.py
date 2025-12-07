@@ -1,20 +1,11 @@
 import fire
 import json
 from os.path import join
-from vllm import LLM, SamplingParams
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import os
-from utils.format import MagirecoJSON, MagirecoJSON_0427, extract_all_names_in_src
-from utils.orion_util import vllm_chat_with
-from utils.assistant import Assistant
-from utils.misc import read_wiki_special, load_json
-import glob
-from copy import deepcopy
-from functools import partial
-import multiprocessing
+from utils.format import MagirecoJSON
+from utils.assistant import post_request
+from utils.misc import load_json
 from concurrent.futures import ThreadPoolExecutor
-from tqdm import tqdm
 import re
 
 
@@ -61,37 +52,44 @@ def trans_glob(
     print(sorted(src_fps))
     
     # _trans_single = partial(trans_single_openai, api_key=api_key, model=model, tgt_root=tgt_root, log_root=log_root, prompt_root=prompt_root, prompt_name=prompt_name, special_fp=special_fp, max_tokens=max_tokens, temperature=temperature)
-    _trans_single = partial(trans_single_openai, **sub_kwargs)
+    # _trans_single = partial(trans_single_openai, **sub_kwargs)
     # if len(src_fps) > 1 and num_worker > 1:
     
-    with ThreadPoolExecutor(num_worker) as e:
-        results = list(tqdm(e.map(_trans_single, src_fps)))
+    e = ThreadPoolExecutor(num_worker)
+    futures = []
+    for src_fp in src_fps:
+        futures.append(e.submit(trans_single_openai, src_fp=src_fp, **sub_kwargs))
+    # e.shutdown(wait=True)
+
+    # with ThreadPoolExecutor(num_worker) as e:
+    #     results = list(tqdm(e.map(_trans_single, src_fps)))
     # results = []
     # with multiprocessing.Pool(num_worker) as pool:
     #     for res in tqdm(pool.imap_unordered(_trans_single, src_fps)):
     #         results.append(res)
     # print(results)
+    results = [f.result() for f in futures]
     print(f'\n{set(src_fps).difference(set(results))} \nfailed out of \n{src_fps}')    
     # else:
     #     for src_fp in src_fps:
     #         trans_single_openai(src_fp=src_fp, api_key=api_key, model=model, tgt_root=tgt_root, log_root=log_root, prompt_root=prompt_root, prompt_name=prompt_name, special_fp=special_fp, max_tokens=max_tokens, temperature=temperature)
 
 
-# 反正连不上内网的人用不了
 def trans_single_openai(
-    src_fp: str = 'magireco-source/102204-9_yV4hL.json',
-    api_key: str = "api-1703564783321-YtWSxoHawe",
-    base_url: str = "http://10.220.5.153:31417/api/requestazuremessage",
-    model: str = 'gpt-4o',
+    src_fp: str = 'magireco-source/103002-2_km1wv.json',
+    api_key: str = "REMOVED_API_KEY",
+    base_url: str = "REMOVED_BASE_URL",
+    model: str = 'deepseek-chat',
     tgt_root: str = 'output',
     log_root: str = 'log',
     prompt_root: str = 'prompts',
     prompt_name: str = 'sakura_v8.4.md',
     special_fp: str = 'output/special_latest.json',
-    temperature: float = 0.0,
-    top_p: float = 1.0,
-    max_tokens = 4096,
-    add_line_number = True
+    temperature: float = 0.1,
+    top_p: float = 0.95,
+    max_tokens = 8192,
+    add_line_number = True,
+    prompt_in_user = False,
 ):
     prompt_fp = join(prompt_root, prompt_name)
     src_name = os.path.basename(src_fp)
@@ -113,17 +111,30 @@ def trans_single_openai(
 
     src_text = JSONmeta.get_src_text(add_line_number=add_line_number)
     msg = prompt_msg + [{"role": "user", "content": src_text}]
-    assistant = Assistant(api_key, base_url)
-    assistant.set_request_parameters(max_tokens=max_tokens, model=model, temperature=temperature, top_p=top_p)
-    assistant.substitute_msg(msg)
-    tgt_text = assistant.send_request()
+    
 
-    print(f'\n\nResults of {src_fp}:\n{prompt}\n\n{src_text}\n\n{tgt_text}')
+    print(f'Now send to {base_url} using {model=} for translating {src_fp}:\n{prompt}\n\n{src_text}')
+    response = post_request(
+        msg, base_url=base_url, api_key=api_key, 
+        model=model, max_tokens=max_tokens, temperature=temperature, top_p=top_p,
+        prompt_in_user=prompt_in_user, return_type='response')
+    choice = response.choices[0]
+    tgt_text = choice.message.content # if chat else choice.text
+    if model == 'deepseek-reasoner':
+        reasoning_content = choice.message.reasoning_content
+    # assistant = Assistant(api_key, base_url)
+    # assistant.set_request_parameters(max_tokens=max_tokens, model=model, temperature=temperature, top_p=top_p)
+    # assistant.substitute_msg(msg)
+    # tgt_text = assistant.send_request()
+    print(f'Translated text:\n{tgt_text}')
     
     log_fp = join(log_root, model, os.path.splitext(prompt_name)[0], os.path.splitext(src_name)[0]+'.log')
     os.makedirs(os.path.dirname(log_fp), exist_ok=True)
     with open(log_fp, 'w', encoding='utf-8') as f:
+        f.write(f'{prompt}\n\n')
         f.write(f'{src_text}\n\n{tgt_text}')
+        if model == 'deepseek-reasoner':
+            f.write(f'\n\n{reasoning_content=}')
 
     tgt = JSONmeta.tgt_text2tgt(tgt_text, add_line_number=add_line_number)
     if not tgt:

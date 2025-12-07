@@ -61,13 +61,13 @@ class MagirecoJSON:
         self.src = src
         self.tgt = deepcopy(src)
         # 其实可以不用维护这个表，只需要维护一个mgrc_name_trans就行了
-        self.blocks = []  # type: list[Block]
+        self.blocks: list[Block] = []
         # 关键在于怎么从tgt_txt里面还原出tgt，其实简单
         self.grouped = True    
-        self.special_in_src = set() # type: set
+        self.special_in_src: set[str] = set()
         self._process_src(special)  # special_in_src and names in tgt build
 
-    def tgt_text2tgt(self, tgt_text: str, add_line_number=False) -> dict:
+    def tgt_text2tgt(self, tgt_text: str, add_line_number=False, space2at=True) -> dict:
         if not tgt_text:
             return None
         tgt_text_list = tgt_text.strip().split('\n')
@@ -96,6 +96,9 @@ class MagirecoJSON:
             content = tgt_text.split('：')[-1]
             mem_contents = content.split('@')
             for mem_ind, mem_content in zip(block.members, mem_contents):
+                # substitute 孤立的空格为 @
+                if space2at:
+                    mem_content = re.sub(r'(?<!\S) (?!\S)', '@', mem_content)
                 if self.grouped:
                     item = self.tgt['story'][block.grp_key][mem_ind] # type: dict
                 else:
@@ -164,7 +167,10 @@ class MagirecoJSON:
                     except:
                         print(f'find no corresponding name to key {content_key} in {src}')
                         name = ''
-                    content = item[content_key].replace('@', '')
+                    content = item[content_key]
+                    # 将所有跟随在"、"后的"@"替换为""，否则将"@"替换为" "
+                    content = re.sub(r'、@', '、', content)  # Replace "、@" with "、"
+                    content = re.sub(r'(?<!、)@', ' ', content)  # Replace "@" with " " if not preceded by "、"
                     if not block or block.content_key != content_key or block.name != name:
                         if block:
                             blocks.append(block)

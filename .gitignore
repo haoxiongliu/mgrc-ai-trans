@@ -8,3 +8,4 @@ play.sh
 play/*
 output/*
 log/*
+resources/*
