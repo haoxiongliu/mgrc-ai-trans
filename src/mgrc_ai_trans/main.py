@@ -2,9 +2,10 @@ import fire
 import json
 from os.path import join
 import os
-from utils.format import MagirecoJSON
-from utils.assistant import post_request
-from utils.misc import load_json
+from importlib.resources import files, as_file
+from mgrc_ai_trans.utils.format import MagirecoJSON
+from mgrc_ai_trans.utils.assistant import post_request
+from mgrc_ai_trans.utils.misc import load_json, read_json, jsonl2dps
 from concurrent.futures import ThreadPoolExecutor
 import re
 
@@ -15,13 +16,20 @@ def build_train_ds(
     output_fp: str = 'datasets/debug.jsonl',
     fn_pattern: str = '5167(10-2|10-9|20-6|20-7)_.*.json',
     special_fp: str = 'output/special_latest.json',
-    sys_prompt_fp: str = 'prompts/sakura_ft_v0.md',
+    sys_prompt_fp: str = None,
     add_line_number: bool = False
 ):
     fns = [fn for fn in os.listdir(trans_root) if re.match(fn_pattern, fn)]
     special = load_json(special_fp)
-    with open(sys_prompt_fp) as f:
-        sys_prompt = f.read()
+    
+    # 如果没有提供系统提示文件路径，使用包内的默认路径
+    if sys_prompt_fp is None:
+        prompt_path = files('mgrc_ai_trans.prompts').joinpath('sakura_ft_v0.md')
+        with open(prompt_path) as f:
+            sys_prompt = f.read()
+    else:
+        with open(sys_prompt_fp) as f:
+            sys_prompt = f.read()
     sys_msg = [{'role': 'system', 'content': sys_prompt}]
     msgs = []
     for fn in fns:
@@ -82,7 +90,7 @@ def trans_single_openai(
     model: str = 'deepseek-chat',
     tgt_root: str = 'output',
     log_root: str = 'log',
-    prompt_root: str = 'prompts',
+    prompt_root: str = None,
     prompt_name: str = 'sakura_v8.4.md',
     special_fp: str = 'output/special_latest.json',
     temperature: float = 0.1,
@@ -91,7 +99,13 @@ def trans_single_openai(
     add_line_number = True,
     prompt_in_user = False,
 ):
-    prompt_fp = join(prompt_root, prompt_name)
+    # 如果没有提供提示根目录，使用包内的prompts目录
+    if prompt_root is None:
+        prompt_path = files('mgrc_ai_trans.prompts').joinpath(prompt_name)
+    else:
+        prompt_path = join(prompt_root, prompt_name)
+    
+    prompt_fp = str(prompt_path)
     src_name = os.path.basename(src_fp)
     tgt_fp = join(tgt_root, model, os.path.splitext(prompt_name)[0], src_name)
     if os.path.exists(tgt_fp):

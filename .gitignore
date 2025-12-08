@@ -1,11 +1,52 @@
+# Python virtual environment
+.venv/
+env/
+
+# Python cache files
+*.pyc
+*.pyo
+__pycache__/
+*/__pycache__/
+
+# IDE configuration
 .vscode/
-*/__pycache__/*
-__pycache__/*
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter notebooks
 play.ipynb
+
+# Temporary files
 play.json
 .archive/
 play.sh
-play/*
-output/*
-log/*
-resources/*
+
+# Output directories
+output/
+log/
+resources/
+
+# Play directory
+play/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Testing
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
