@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "openai",
+    "python-dotenv",
     "tqdm",
     "jinja2",
     "fire",

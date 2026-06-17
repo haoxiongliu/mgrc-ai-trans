@@ -1,0 +1,3 @@
+[submodule "external/magireco-source"]
+	path = external/magireco-source
+	url = https://gitlab.com/EnkanRec/magireco-source.git

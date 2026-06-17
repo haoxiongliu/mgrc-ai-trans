@@ -6,6 +6,7 @@ from importlib.resources import files, as_file
 from mgrc_ai_trans.utils.format import MagirecoJSON
 from mgrc_ai_trans.utils.assistant import post_request
 from mgrc_ai_trans.utils.misc import load_json, read_json, jsonl2dps
+from mgrc_ai_trans.config import DEFAULT_MODEL, request_overrides_for_model, resolve_api_config
 from concurrent.futures import ThreadPoolExecutor
 import re
 
@@ -85,9 +86,9 @@ def trans_glob(
 
 def trans_single_openai(
     src_fp: str = 'magireco-source/103002-2_km1wv.json',
-    api_key: str = "REMOVED_API_KEY",
-    base_url: str = "REMOVED_BASE_URL",
-    model: str = 'deepseek-chat',
+    api_key: str | None = None,
+    base_url: str | None = None,
+    model: str = DEFAULT_MODEL,
     tgt_root: str = 'output',
     log_root: str = 'log',
     prompt_root: str = None,
@@ -99,6 +100,14 @@ def trans_single_openai(
     add_line_number = True,
     prompt_in_user = False,
 ):
+    api_config = resolve_api_config(model=model, api_key=api_key, base_url=base_url)
+    api_key = api_config.api_key
+    base_url = api_config.base_url
+    request_overrides = request_overrides_for_model(model)
+    if "temperature" in request_overrides and temperature != request_overrides["temperature"]:
+        print(f"{model} requires temperature={request_overrides['temperature']}; overriding {temperature}.")
+        temperature = request_overrides["temperature"]
+
     # 如果没有提供提示根目录，使用包内的prompts目录
     if prompt_root is None:
         prompt_path = files('mgrc_ai_trans.prompts').joinpath(prompt_name)

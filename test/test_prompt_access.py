@@ -7,7 +7,7 @@ print(f'File exists: {prompt_path.exists()}')
 
 # 尝试读取文件内容
 if prompt_path.exists():
-    with open(prompt_path) as f:
+    with open(prompt_path, encoding='utf-8') as f:
         content = f.read()
         print(f'File content length: {len(content)} characters')
         print(f'First 50 characters: {content[:50]}...')

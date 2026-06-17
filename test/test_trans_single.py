@@ -18,7 +18,7 @@ try:
     print(f"文件是否存在: {prompt_path.exists()}")
     
     if prompt_path.exists():
-        with open(prompt_path) as f:
+        with open(prompt_path, encoding='utf-8') as f:
             content = f.read()
             print(f"提示文件内容长度: {len(content)} 字符")
             print(f"提示文件前几行: {content.splitlines()[:3]}...")

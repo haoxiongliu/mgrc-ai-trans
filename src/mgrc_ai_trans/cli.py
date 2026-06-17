@@ -8,19 +8,21 @@ Magireco AI Translator CLI
 
 import argparse
 import sys
+from mgrc_ai_trans.config import DEFAULT_MODEL, load_env
 from mgrc_ai_trans.main import trans_single_openai, trans_glob, build_train_ds
 
 
 def main():
+    load_env()
     parser = argparse.ArgumentParser(description='Magireco AI Translator CLI')
     subparsers = parser.add_subparsers(dest='command', help='可用命令')
     
     # 单个文件翻译命令
     trans_single_parser = subparsers.add_parser('trans-single', help='翻译单个JSON文件')
     trans_single_parser.add_argument('src_fp', type=str, help='源JSON文件路径')
-    trans_single_parser.add_argument('--api-key', type=str, default="REMOVED_API_KEY", help='OpenAI API密钥')
-    trans_single_parser.add_argument('--base-url', type=str, default="REMOVED_BASE_URL", help='API基础URL')
-    trans_single_parser.add_argument('--model', type=str, default='deepseek-chat', help='使用的模型')
+    trans_single_parser.add_argument('--api-key', type=str, default=None, help='OpenAI API密钥')
+    trans_single_parser.add_argument('--base-url', type=str, default=None, help='API基础URL')
+    trans_single_parser.add_argument('--model', type=str, default=DEFAULT_MODEL, help='使用的模型')
     trans_single_parser.add_argument('--tgt-root', type=str, default='output', help='输出目录根路径')
     trans_single_parser.add_argument('--log-root', type=str, default='log', help='日志目录根路径')
     trans_single_parser.add_argument('--prompt-root', type=str, default='prompts', help='提示模板目录')
@@ -39,9 +41,9 @@ def main():
     trans_glob_parser.add_argument('--fn-pattern', type=str, default='5167(10-2|10-9|20-6|20-7)_.*.json', help='文件名匹配模式')
     trans_glob_parser.add_argument('--num-worker', type=int, default=4, help='并行工作进程数')
     # 添加trans_single_openai的所有参数
-    trans_glob_parser.add_argument('--api-key', type=str, default="REMOVED_API_KEY", help='OpenAI API密钥')
-    trans_glob_parser.add_argument('--base-url', type=str, default="REMOVED_BASE_URL", help='API基础URL')
-    trans_glob_parser.add_argument('--model', type=str, default='deepseek-chat', help='使用的模型')
+    trans_glob_parser.add_argument('--api-key', type=str, default=None, help='OpenAI API密钥')
+    trans_glob_parser.add_argument('--base-url', type=str, default=None, help='API基础URL')
+    trans_glob_parser.add_argument('--model', type=str, default=DEFAULT_MODEL, help='使用的模型')
     trans_glob_parser.add_argument('--tgt-root', type=str, default='output', help='输出目录根路径')
     trans_glob_parser.add_argument('--log-root', type=str, default='log', help='日志目录根路径')
     trans_glob_parser.add_argument('--prompt-root', type=str, default='prompts', help='提示模板目录')
